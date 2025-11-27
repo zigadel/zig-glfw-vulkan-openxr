@@ -21,50 +21,106 @@ fn linkVulkanLoader(
                 }
             }
 
+            // Windows loader name.
             exe.linkSystemLibrary("vulkan-1");
         },
         .linux => {
             exe.linkSystemLibrary("vulkan");
         },
         .macos => {
-            // Typically MoltenVK / Vulkan loader (e.g. via VK SDK).
+            // Typically MoltenVK / Vulkan loader (e.g. via VK SDK / Homebrew).
             exe.linkSystemLibrary("vulkan");
         },
         else => {
-            // Other OSes: do nothing. If a Vulkan loader is required but
-            // missing, link will fail loudly, which is fine.
+            // Other OSes: do nothing. If a Vulkan loader is required but missing,
+            // link will fail loud and clear.
         },
     }
 }
 
-/// Ensure we have a vk.xml for vulkan-zig:
-/// - If ./registry/vk.xml exists, use it.
-/// - Otherwise, create ./registry and download vk.xml via curl, and use that.
+/// Ensure we have a *workspace* ./registry/vk.xml:
+/// - If ./registry/vk.xml exists, just use it.
+/// - Otherwise:
+///   - mkdir ./registry (if needed),
+///   - run `curl -L <vk.xml> -o registry/vk.xml` once,
+///   - then use that.
 ///
-/// Returns a LazyPath suitable to pass as `.registry` to the `vulkan` dep.
-/// `vk.xml`/`vk.zig` is all done in-memory
+/// This returns a LazyPath suitable for `.registry` in the `vulkan` dependency.
 fn ensureVkRegistry(b: *std.Build) std.Build.LazyPath {
-    const registry_rel = "registry/vk.xml";
-
-    // 1) If you have a committed registry/vk.xml, use it.
+    const xml_rel = "registry/vk.xml";
+    const registry_dir = "registry";
     const cwd = std.fs.cwd();
-    if (cwd.openFile(registry_rel, .{})) |f| {
-        f.close();
-        return b.path(registry_rel);
-    } else |_| {}
 
-    // 2) Otherwise, download vk.xml into the build cache only.
-    const dl = b.addSystemCommand(&.{"curl"});
-    dl.addArgs(&.{
+    // 1) If the file already exists in the repo, we're done.
+    if (cwd.openFile(xml_rel, .{})) |file| {
+        file.close();
+        return b.path(xml_rel);
+    } else |err| switch (err) {
+        error.FileNotFound => {}, // expected first-time case
+        else => {
+            std.debug.print("error: failed to open {s}: {s}\n", .{
+                xml_rel,
+                @errorName(err),
+            });
+            @panic("cannot access registry/vk.xml");
+        },
+    }
+
+    // 2) Make sure ./registry exists.
+    cwd.makeDir(registry_dir) catch |err| switch (err) {
+        error.PathAlreadyExists => {},
+        else => {
+            std.debug.print("error: failed to create directory '{s}': {s}\n", .{
+                registry_dir,
+                @errorName(err),
+            });
+            @panic("cannot create registry directory");
+        },
+    };
+
+    // 3) Download vk.xml into ./registry/vk.xml using curl, synchronously.
+    //    (No build step, no .zig-cache weirdness.)
+    var argv = [_][]const u8{
+        "curl",
         "-L",
         "https://raw.githubusercontent.com/KhronosGroup/Vulkan-Docs/main/xml/vk.xml",
         "-o",
-    });
+        xml_rel,
+    };
 
-    // This name is just a basename in .zig-cache, not your workspace.
-    const vk_xml = dl.addOutputFileArg("vk.xml");
+    var child = std.process.Child.init(&argv, b.allocator);
+    child.stdin_behavior = .Inherit;
+    child.stdout_behavior = .Inherit;
+    child.stderr_behavior = .Inherit;
 
-    return vk_xml;
+    const term = child.spawnAndWait() catch |err| {
+        std.debug.print("error: failed to spawn curl: {s}\n", .{@errorName(err)});
+        @panic("curl not available or failed to start");
+    };
+
+    switch (term) {
+        .Exited => |code| if (code != 0) {
+            std.debug.print("error: curl exited with code {d}\n", .{code});
+            @panic("failed to download vk.xml");
+        },
+        else => {
+            std.debug.print("error: curl terminated abnormally: {any}\n", .{term});
+            @panic("failed to download vk.xml");
+        },
+    }
+
+    // 4) Sanity check that vk.xml is now really there.
+    if (cwd.openFile(xml_rel, .{})) |file2| {
+        file2.close();
+    } else |err| {
+        std.debug.print("error: vk.xml download seems to have succeeded, but cannot reopen {s}: {s}\n", .{
+            xml_rel,
+            @errorName(err),
+        });
+        @panic("vk.xml missing after download");
+    }
+
+    return b.path(xml_rel);
 }
 
 pub fn build(b: *std.Build) void {
@@ -84,9 +140,9 @@ pub fn build(b: *std.Build) void {
     const glfw_lib = glfw_dep.artifact("glfw-zig");
 
     // vulkan-zig (Snektron), declared in build.zig.zon under .vulkan.
-    // We now *always* provide a registry LazyPath, but the file is either:
-    //   - your committed ./registry/vk.xml, or
-    //   - auto-downloaded via curl into ./registry/vk.xml
+    // We *always* provide a concrete registry path in the workspace:
+    //   - If registry/vk.xml already exists, we reuse it.
+    //   - Otherwise, we download it once.
     const vk_registry = ensureVkRegistry(b);
 
     const vk_dep = b.dependency("vulkan", .{
@@ -95,7 +151,6 @@ pub fn build(b: *std.Build) void {
         .registry = vk_registry,
     });
 
-    // Module name exported by vulkan-zig's build.zig.
     const vk_mod = vk_dep.module("vulkan-zig");
 
     // ─────────────────────────────────────────────────────────────────────
