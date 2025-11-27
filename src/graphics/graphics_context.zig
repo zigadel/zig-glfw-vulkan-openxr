@@ -187,14 +187,20 @@ pub const GraphicsContext = struct {
     }
 
     pub fn deinit(self: GraphicsContext) void {
+        // Best practice: ensure all work is complete before destruction.
+        // Ignore the result – if it fails, we’re shutting down anyway.
+        _ = self.vkd.deviceWaitIdle(self.dev) catch {};
+
         self.vkd.destroyDevice(self.dev, null);
         self.vki.destroySurfaceKHR(self.instance, self.surface, null);
         self.vki.destroyInstance(self.instance, null);
     }
 
-    pub fn deviceName(self: GraphicsContext) []const u8 {
-        const len = std.mem.indexOfScalar(u8, &self.props.device_name, 0).?;
-        return self.props.device_name[0..len];
+    pub fn deviceName(self: *const GraphicsContext) []const u8 {
+        // Take the fixed-size buffer as a slice…
+        const buf: []const u8 = self.props.device_name[0..];
+        // …and cut at the first NUL byte (C string terminator).
+        return std.mem.sliceTo(buf, 0);
     }
 
     pub fn findMemoryTypeIndex(
@@ -248,18 +254,26 @@ fn glfwGetInstanceProc(
     instance: vk.Instance,
     name: [*:0]const u8,
 ) callconv(.c) vk.PfnVoidFunction {
-    // vk.Instance is enum(usize). Go via its integer payload.
-    const opaque_instance: ?*anyopaque = @ptrFromInt(@intFromEnum(instance));
+    // Convert vk.Instance (enum(usize)) to the pointer-like VkInstance that
+    // GLFW expects in its C API.
+    const opaque_instance: ?*anyopaque = blk: {
+        if (instance == .null_handle) break :blk null;
 
-    // Convert [*:0]const u8 → [:0]const u8 for glfw-zig.
+        const bits: usize = @intFromEnum(instance);
+        break :blk @ptrFromInt(bits);
+    };
+
+    // Vulkan expects zero-terminated ASCII; glfw-zig’s API takes [:0]const u8.
     const name_slice: [:0]const u8 = std.mem.span(name);
 
-    // glfw-zig returns an optional raw function pointer.
-    const raw = glfw.getInstanceProcAddress(opaque_instance, name_slice);
+    // glfw.VkProc == GLFWvkproc == optional raw function pointer.
+    const raw: glfw.VkProc = glfw.getInstanceProcAddress(opaque_instance, name_slice);
 
     if (raw) |p| {
+        // Convert GLFW’s proc pointer type into Vulkan’s PfnVoidFunction.
         return @ptrCast(p);
     }
+
     return null;
 }
 
