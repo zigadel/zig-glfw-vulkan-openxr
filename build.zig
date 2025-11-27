@@ -10,34 +10,77 @@ fn linkVulkanLoader(
     switch (os_tag) {
         .windows => {
             // Try to locate the Vulkan SDK and add its Lib directory.
-            // This assumes a layout like: %VULKAN_SDK%\Lib\vulkan-1.lib
             const sdk = std.process.getEnvVarOwned(b.allocator, "VULKAN_SDK") catch null;
             if (sdk) |sdk_path| {
-                // Join "<sdk_path>" + "Lib" into a single path string.
+                defer b.allocator.free(sdk_path);
+
                 const lib_dir = std.fs.path.join(b.allocator, &.{ sdk_path, "Lib" }) catch null;
                 if (lib_dir) |ld| {
-                    // LazyPath no longer has an 'absolute' variant; cwd_relative
-                    // is used for arbitrary paths (absolute or relative).
+                    defer b.allocator.free(ld);
                     exe.addLibraryPath(.{ .cwd_relative = ld });
                 }
             }
 
-            // Windows loader name.
             exe.linkSystemLibrary("vulkan-1");
         },
         .linux => {
-            // Linux loader name.
             exe.linkSystemLibrary("vulkan");
         },
         .macos => {
-            // On macOS this typically comes from MoltenVK (libvulkan.dylib).
+            // Typically MoltenVK / Vulkan loader (e.g. via VK SDK).
             exe.linkSystemLibrary("vulkan");
         },
         else => {
-            // Other OSes: do nothing for now. The build will fail if a loader
-            // is required but missing, which is fine.
+            // Other OSes: do nothing. If a Vulkan loader is required but
+            // missing, link will fail loudly, which is fine.
         },
     }
+}
+
+/// Ensure we have a vk.xml for vulkan-zig:
+/// - If ./registry/vk.xml exists, use it.
+/// - Otherwise, create ./registry and download vk.xml via curl, and use that.
+///
+/// Returns a LazyPath suitable to pass as `.registry` to the `vulkan` dep.
+fn ensureVkRegistry(b: *std.Build) std.Build.LazyPath {
+    const registry_rel = "registry/vk.xml";
+
+    // 1) Check if a local registry/vk.xml already exists.
+    var has_local: bool = false;
+    {
+        const cwd = std.fs.cwd();
+        if (cwd.openFile(registry_rel, .{})) |f| {
+            f.close();
+            has_local = true;
+        } else |_| {
+            has_local = false;
+        }
+    }
+
+    if (has_local) {
+        // Use the committed file (no network). This matches your old behavior.
+        return b.path(registry_rel);
+    }
+
+    // 2) No local vk.xml: create ./registry and download a fresh copy.
+    const cwd = std.fs.cwd();
+    cwd.makePath("registry") catch |err| {
+        std.debug.print(
+            "warning: failed to create 'registry/' directory: {s}\n",
+            .{@errorName(err)},
+        );
+    };
+
+    const dl = b.addSystemCommand(&.{"curl"});
+    // Adjust the URL if you want to pin to a specific Vulkan-Docs revision.
+    dl.addArgs(&.{
+        "-L",
+        "https://raw.githubusercontent.com/KhronosGroup/Vulkan-Docs/main/xml/vk.xml",
+        "-o",
+    });
+    const vk_xml = dl.addOutputFileArg(registry_rel);
+
+    return vk_xml;
 }
 
 pub fn build(b: *std.Build) void {
@@ -49,9 +92,6 @@ pub fn build(b: *std.Build) void {
     // ─────────────────────────────────────────────────────────────────────
 
     // glfw-zig (your repo), as declared in build.zig.zon under .glfw_zig.
-    // Exposes:
-    //   - module "glfw"
-    //   - artifact "glfw-zig" (which already links the GLFW C library)
     const glfw_dep = b.dependency("glfw_zig", .{
         .target = target,
         .optimize = optimize,
@@ -59,13 +99,19 @@ pub fn build(b: *std.Build) void {
     const glfw_mod = glfw_dep.module("glfw");
     const glfw_lib = glfw_dep.artifact("glfw-zig");
 
-    // vulkan-zig (Snektron), as declared in build.zig.zon under .vulkan.
-    // We point it at our local registry/vk.xml, same as your original project.
+    // vulkan-zig (Snektron), declared in build.zig.zon under .vulkan.
+    // We now *always* provide a registry LazyPath, but the file is either:
+    //   - your committed ./registry/vk.xml, or
+    //   - auto-downloaded via curl into ./registry/vk.xml
+    const vk_registry = ensureVkRegistry(b);
+
     const vk_dep = b.dependency("vulkan", .{
-        .registry = b.pathFromRoot("registry/vk.xml"),
         .target = target,
         .optimize = optimize,
+        .registry = vk_registry,
     });
+
+    // Module name exported by vulkan-zig's build.zig.
     const vk_mod = vk_dep.module("vulkan-zig");
 
     // ─────────────────────────────────────────────────────────────────────
@@ -122,7 +168,6 @@ pub fn build(b: *std.Build) void {
 
     // `zig build run` convenience.
     const run_cmd = b.addRunArtifact(exe);
-    // Match your old behavior: run from the install dir.
     run_cmd.step.dependOn(b.getInstallStep());
 
     if (b.args) |args| {
