@@ -23,8 +23,19 @@ const required_device_extensions = [_][*:0]const u8{
 const optional_device_extensions = [_][*:0]const u8{};
 
 // Optional *instance* extensions we try to enable if present.
-const optional_instance_extensions = [_][*:0]const u8{
-    vk.extensions.khr_get_physical_device_properties_2.name,
+const optional_instance_extensions = blk: {
+    if (builtin.os.tag == .macos) {
+        // On macOS+MoltenVK you MUST enable the portability enumeration extension
+        // if you set enumerate_portability_bit_khr on InstanceCreateInfo.flags.
+        break :blk [_][*:0]const u8{
+            vk.extensions.khr_get_physical_device_properties_2.name,
+            vk.extensions.khr_portability_enumeration.name,
+        };
+    } else {
+        break :blk [_][*:0]const u8{
+            vk.extensions.khr_get_physical_device_properties_2.name,
+        };
+    }
 };
 
 // Modern vulkan-zig: wrappers are already monomorphized types.
@@ -121,12 +132,15 @@ pub const GraphicsContext = struct {
             }
         }
 
+        const app_version: u32 = @as(u32, @bitCast(vk.makeApiVersion(0, 0, 0, 0)));
+        const api_version: u32 = @as(u32, @bitCast(vk.makeApiVersion(0, 1, 0, 0))); // Vulkan 1.0
+
         const app_info = vk.ApplicationInfo{
             .p_application_name = app_name,
-            .application_version = @bitCast(vk.makeApiVersion(0, 0, 0, 0)),
+            .application_version = app_version,
             .p_engine_name = app_name,
-            .engine_version = @bitCast(vk.makeApiVersion(0, 0, 0, 0)),
-            .api_version = @bitCast(vk.makeApiVersion(0, 1, 1, 0)),
+            .engine_version = app_version,
+            .api_version = api_version,
         };
 
         const enabled_ext_count: u32 = @intCast(instance_extensions.items.len);
