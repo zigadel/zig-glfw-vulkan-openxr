@@ -42,43 +42,27 @@ fn linkVulkanLoader(
 /// - Otherwise, create ./registry and download vk.xml via curl, and use that.
 ///
 /// Returns a LazyPath suitable to pass as `.registry` to the `vulkan` dep.
+/// `vk.xml`/`vk.zig` is all done in-memory
 fn ensureVkRegistry(b: *std.Build) std.Build.LazyPath {
     const registry_rel = "registry/vk.xml";
 
-    // 1) Check if a local registry/vk.xml already exists.
-    var has_local: bool = false;
-    {
-        const cwd = std.fs.cwd();
-        if (cwd.openFile(registry_rel, .{})) |f| {
-            f.close();
-            has_local = true;
-        } else |_| {
-            has_local = false;
-        }
-    }
-
-    if (has_local) {
-        // Use the committed file (no network). This matches your old behavior.
-        return b.path(registry_rel);
-    }
-
-    // 2) No local vk.xml: create ./registry and download a fresh copy.
+    // 1) If you have a committed registry/vk.xml, use it.
     const cwd = std.fs.cwd();
-    cwd.makePath("registry") catch |err| {
-        std.debug.print(
-            "warning: failed to create 'registry/' directory: {s}\n",
-            .{@errorName(err)},
-        );
-    };
+    if (cwd.openFile(registry_rel, .{})) |f| {
+        f.close();
+        return b.path(registry_rel);
+    } else |_| {}
 
+    // 2) Otherwise, download vk.xml into the build cache only.
     const dl = b.addSystemCommand(&.{"curl"});
-    // Adjust the URL if you want to pin to a specific Vulkan-Docs revision.
     dl.addArgs(&.{
         "-L",
         "https://raw.githubusercontent.com/KhronosGroup/Vulkan-Docs/main/xml/vk.xml",
         "-o",
     });
-    const vk_xml = dl.addOutputFileArg(registry_rel);
+
+    // This name is just a basename in .zig-cache, not your workspace.
+    const vk_xml = dl.addOutputFileArg("vk.xml");
 
     return vk_xml;
 }
