@@ -1,0 +1,23 @@
+.{
+    .name = .zig_glfw_vulkan_openxr,
+    .version = "0.0.1",
+    .fingerprint = 0x217bac13002fe5d6,
+
+    // Targeted Zig toolchain (what you're actually using on both Win/macOS)
+    .minimum_zig_version = "0.16.0-dev.1470+32dc46aae",
+
+    .dependencies = .{
+        .glfw_zig = .{
+            .url = "git+https://github.com/zigadel/glfw-zig#6c10f9d1ad2e17e20bb5621de731bc48f98a12f4",
+            .hash = "glfw_zig-0.1.0-vua0KFK1AQCqxZBV8Aql1wll2j7rFJemjMa-Tov-nl-N",
+        },
+        .vulkan = .{
+            .url = "git+https://github.com/Snektron/vulkan-zig#f69af7a9248982cf7536aaf32111843f1a4fa4a9",
+            .hash = "vulkan-0.0.0-r7Ytx91DAwDKIXS2K_fFa-c_SJ5py7K1eCKwPcc33NcQ",
+        },
+    },
+
+    .paths = .{
+        "",
+    },
+}
