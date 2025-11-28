@@ -171,8 +171,16 @@ pub fn main() !void {
 
         if (state == .suboptimal) {
             const size = glfw.getWindowSize(window);
+            if (size.width == 0 or size.height == 0) {
+                // On macOS this can happen during live resize / minimize.
+                // Just skip recreating until we have a real framebuffer size.
+                glfw.pollEvents();
+                continue;
+            }
+
             extent.width = @intCast(size.width);
             extent.height = @intCast(size.height);
+
             try swapchain.recreate(extent);
 
             destroyFramebuffers(&gc, allocator, framebuffers);
