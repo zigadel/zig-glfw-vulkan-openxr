@@ -2,7 +2,7 @@
 
 Cross-compatible **Zig (nightly) + GLFW + Vulkan** triangle demo, wired up with:
 
-- [`glfw-zig`](https://github.com/James-Riordan/zig-glfw) for windowing and input  
+- [`glfw-zig`](https://github.com/zigadel/glfw-zig) for windowing and input  
 - [`vulkan-zig`](https://github.com/Snektron/vulkan-zig) for Vulkan bindings + codegen  
 - A small but realistic **graphics stack**: instance, device, swapchain, pipeline, command buffers, resize handling, etc.
 
