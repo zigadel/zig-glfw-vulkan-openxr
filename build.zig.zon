@@ -1,9 +1,8 @@
 .{
-    .name = .zig_glfw_vulkan_openxr,
+    .name = .vrgame,
     .version = "0.0.1",
-    .fingerprint = 0x217bac13002fe5d6,
+    .fingerprint = 0xedc412406bf4c6ff,
 
-    // Targeted Zig toolchain (what you're actually using on both Win/macOS)
     .minimum_zig_version = "0.16.0-dev.1470+32dc46aae",
 
     .dependencies = .{
@@ -14,6 +13,10 @@
         .vulkan = .{
             .url = "git+https://github.com/Snektron/vulkan-zig#f69af7a9248982cf7536aaf32111843f1a4fa4a9",
             .hash = "vulkan-0.0.0-r7Ytx91DAwDKIXS2K_fFa-c_SJ5py7K1eCKwPcc33NcQ",
+        },
+        .openxr = .{
+            .url = "git+https://github.com/zigadel/openxr-zig#ef4d73159ea71eaf496a83dd108e719e54831b8d",
+            .hash = "openxr-0.0.0-KqIT7BW2AgBnSkNOTzbVt03CqNIGdto8RqNDGe76KuDs",
         },
     },
 

@@ -1,0 +1,377 @@
+# vrgame — Ideal Project Directory Layout (mirror of current POC + AAA future scaffolding)
+#
+# Legend:
+#   [OK]   = exists & wired in current POC (copied from zig-glfw-vulkan-openxr)
+#   [TODO] = planned; should be created/filled as we evolve into AAA title
+#   [OPT]  = optional / later, when ready
+#
+# Core Intent:
+# - This repo is the **first proof-of-concept** for Zigadel Game Division.
+# - It starts as a focused **GLFW + Vulkan + OpenXR** triangle-style demo,
+#   then grows into a full **hero-based VR shooter** (Overwatch-of-VR).
+# - GLFW/Vulkan/OpenXR are consumed via `build.zig.zon` dependencies:
+#     • `glfw-zig`  → windowing/input
+#     • `vulkan-zig`→ Vulkan bindings/loader
+#     • `openxr-zig`→ VR runtime integration
+# - Long-term target: AAA-quality architecture (client, server, replay, anti-cheat, ZDB-backed liveops).
+#
+# Invariants:
+# - Inline unit tests live inside Zig source files.
+# - tests/ contains conformance/integration/e2e drivers with aggregators.
+# - src/root.zig becomes the public engine/game facade; src/main.zig is the CLI/launcher.
+# - Graphics stack (GLFW+Vulkan+OpenXR) lives under src/graphics + src/client/render.
+# - Simulation/gameplay/VR input are separated from graphics as we evolve.
+# - ZTable/ZDBs are used for data, matchmaking, replays, telemetry, NOT per-frame world state.
+
+vrgame/
+|   [OK]  .gitattributes
+|   [OK]  .gitignore
+|   [TODO] .editorconfig                 # shared Zigadel whitespace/style rules
+|   [TODO] .dpignore                     # for dump_project / vault tooling
+|   [OK]  build.zig
+|   [OK]  build.zig.zon
+|   [OK]  README.md                      # currently: triangle demo; will evolve into VRGame overview
+|   [TODO] ideal-project-directory-structure.txt  # this file (keep updated as reality changes)
+|   [OPT] LICENSE                        # choose a license when you’re ready
+|   [OPT] CHANGELOG.md
+|   [OPT] CONTRIBUTING.md
+|   [OPT] SECURITY.md
+|   [OPT] CODEOWNERS
+|   [OPT] CODE_OF_CONDUCT.md
+|
++---docs/
+|       [TODO] ARCHITECTURE.md           # high-level: engine, client, server, graphics, data-plane
+|       [TODO] GRAPHICS_STACK.md         # glfw-zig + vulkan-zig + openxr-zig integration details
+|       [TODO] GAMEPLAY.md               # hero design, roles, abilities, maps, modes
+|       [TODO] NETCODE.md                # prediction, reconciliation, lag comp, hit-reg, regions
+|       [TODO] VR.md                     # OpenXR flows, tracking, comfort modes, UX constraints
+|       [TODO] REPLAY.md                 # replay format, kill-cam, highlight system
+|       [TODO] ANTI_CHEAT.md             # threat model, detection, policy, tooling
+|       [TODO] MATCHMAKING.md            # MMR, queues, roles, party rules
+|       [TODO] PROGRESSION.md            # XP, unlocks, cosmetics, monetization guardrails
+|       [TODO] ZDB_INTEGRATION.md        # ZPlayerDB, ZMatchDB, ZReplayDB, ZTelemetryDB, ZAntiCheatDB
+|       [TODO] LIVEOPS.md                # config rollout, patches, experiments
+|       [TODO] PERF.md                   # frame/tick budgets, perf methodology, platforms
+|
++---configs/
+|       [TODO] default.zson              # baseline config (single-player dev environment)
+|       [TODO] dev.zson                  # dev overrides: verbose logs, localhost servers
+|       [TODO] staging.zson              # staging cluster config for Hydra
+|       [TODO] production.zson           # production config for Hydra/Zap
+|       [OPT]  input_pc.zson             # default PC keybinds/sensitivities
+|       [OPT]  input_vr.zson             # default VR bindings/comfort modes
+|       [OPT]  graphics_presets.ztable   # Low/Medium/High/Ultra presets
+|
++---shaders/                             # current POC shaders (root-level; may move under assets/)
+|       [OK]  triangle.frag
+|       [OK]  triangle.vert
+|
++---assets/                              # future canonical home for art/audio/UI
+|   +---shaders/
+|   |       [TODO] README.md
+|   |       [TODO] basic.vert
+|   |       [TODO] basic.frag
+|   |       [TODO] hero_skyline.vert
+|   |       [TODO] hero_skyline.frag
+|   |
+|   +---textures/
+|   |       [TODO] hero_skyline.png
+|   |       [TODO] hero_cascade.png
+|   |       [TODO] hero_bastion.png
+|   |       [TODO] hero_rupture.png
+|   |       [TODO] map_city_rooftops.png
+|   |       [TODO] map_canal_plaza.png
+|   |
+|   +---models/
+|   |       [TODO] hero_skyline.gltf
+|   |       [TODO] hero_cascade.gltf
+|   |       [TODO] hero_bastion.gltf
+|   |       [TODO] hero_rupture.gltf
+|   |       [TODO] weapon_skyline_blades.gltf
+|   |
+|   +---audio/
+|   |       [TODO] sfx_air_slash.wav
+|   |       [TODO] sfx_tidal_heal.wav
+|   |       [TODO] sfx_gauntlet_slam.wav
+|   |       [TODO] music_main_theme.ogg
+|   |
+|   \---ui/
+|           [TODO] fonts/
+|           [TODO] icons/
+|           [TODO] layouts/
+|
++---schemas/                             # game/content/ZDB schemas (ZTable)
+|       [TODO] heroes.ztable             # SKYLINE, CASCADE, BASTION, RUPTURE, etc.
+|       [TODO] abilities.ztable          # AirSlash, IceRamp, ShieldBreak, MeteorFist, ...
+|       [TODO] maps.ztable               # CityRooftops, CanalPlaza, FoundryCrossing
+|       [TODO] modes.ztable              # payload, control point, hybrid
+|       [TODO] matchmaking.ztable        # ranks, queues, buckets
+|       [TODO] progression.ztable        # XP curves, unlocks
+|       [TODO] cosmetics.ztable          # skins, emotes, intros
+|       [TODO] telemetry_signals.ztable  # metrics definitions
+|       [TODO] anti_cheat_signals.ztable # anti-cheat feature definitions
+|
++---zdb/                                 # non-primitive game DBs (file-mode + cluster-mode)
+|   +---ZPlayerDB/
+|   |       [TODO] README.md
+|   |       [TODO] config.zson
+|   |
+|   +---ZMatchDB/
+|   |       [TODO] README.md
+|   |       [TODO] config.zson
+|   |
+|   +---ZReplayDB/
+|   |       [TODO] README.md
+|   |       [TODO] config.zson
+|   |
+|   +---ZTelemetryDB/
+|   |       [TODO] README.md
+|   |       [TODO] config.zson
+|   |
+|   \---ZAntiCheatDB/
+|           [TODO] README.md
+|           [TODO] config.zson
+|
++---deploy/
+|   +---docker/
+|   |       [TODO] Dockerfile.client
+|   |       [TODO] Dockerfile.server
+|   |
+|   +---hydra/
+|   |       [TODO] game_server.zson
+|   |       [TODO] matchmaker.zson
+|   |       [TODO] replay_worker.zson
+|   |       [TODO] anticheat_worker.zson
+|   |
+|   \---zap/
+|           [TODO] zap_routes.zson
+|
++---examples/                            # tiny, focused demos built on the real engine
+|   +---01-local-sandbox/
+|   |       [TODO] README.md
+|   |       [TODO] src/main.zig          # Skyline vs bots on a test map
+|   |
+|   +---02-bot-match/
+|   |       [TODO] README.md
+|   |       [TODO] src/main.zig          # 6v6 bots match; stress test net/sim
+|   |
+|   \---03-replay-viewer/
+|           [TODO] README.md
+|           [TODO] src/main.zig          # standalone replay viewer
+|
++---src/
+|   [OK]  main.zig                       # currently: triangle demo entry point; will become CLI dispatcher
+|   [TODO] root.zig                      # public facade: engine, gameplay, client, server, tools
+|   [TODO] config.zig                    # runtime config facade (mirrors configs/*)
+|   |
+|   +---graphics/                        # current POC graphics stack
+|   |   [OK]  graphics_context.zig       # instance, device, queues, surface, allocator
+|   |   [OK]  swapchain.zig              # swapchain, resize-safe recreation, sync
+|   |   [OK]  vertex.zig                 # vertex format + bindings/attributes
+|   |   +---camera
+|   |   |   [OK]  camera.zig
+|   |   |   [OK]  projection.zig
+|   |   |   [OK]  transform.zig
+|   |   |   [OK]  vector.zig
+|   |   |   [OK]  view.zig
+|   |   |
+|   |   [TODO] renderer.zig              # high-level frame graph / renderer facade
+|   |   [TODO] frame_resources.zig       # per-frame buffers, descriptors, etc.
+|   |
+|   +---engine/                          # simulation core (future)
+|   |   +---core/
+|   |   |       [TODO] math.zig
+|   |   |       [TODO] rng.zig
+|   |   |       [TODO] time.zig
+|   |   |       [TODO] world.zig
+|   |   |       [TODO] physics.zig
+|   |   |       [TODO] nav.zig
+|   |   |       [TODO] movement.zig
+|   |   |       [TODO] damage.zig
+|   |   |       [TODO] status.zig
+|   |   |       [TODO] projectiles.zig
+|   |   |
+|   |   +---lagrangian/
+|   |   |       [TODO] base.zig          # generic action graph engine
+|   |   |       [TODO] ability.zig       # cooldowns, charges, events
+|   |   |
+|   |   +---animation/
+|   |   |       [TODO] skeleton.zig
+|   |   |       [TODO] pose.zig
+|   |   |       [TODO] ik.zig
+|   |   |       [TODO] anim_graph.zig
+|   |   |
+|   |   +---biomech/
+|   |   |       [TODO] rig.zig
+|   |   |       [TODO] muscle.zig
+|   |   |       [TODO] controller.zig
+|   |   |       [TODO] contact.zig
+|   |   |
+|   |   +---audio/
+|   |   |       [TODO] mixer.zig
+|   |   |       [TODO] spatial.zig
+|   |   |       [TODO] events.zig
+|   |   |
+|   |   +---vfx/
+|   |   |       [TODO] system.zig
+|   |   |       [TODO] events.zig
+|   |   |
+|   |   +---camera/
+|   |   |       [TODO] pc_camera.zig
+|   |   |       [TODO] vr_camera.zig
+|   |   |       [TODO] spectator.zig
+|   |   |
+|   |   +---replay/
+|   |   |       [TODO] recorder.zig
+|   |   |       [TODO] player.zig
+|   |   |       [TODO] highlight.zig
+|   |   |
+|   |   \---anti_cheat/
+|   |           [TODO] signals.zig
+|   |           [TODO] detector.zig
+|   |           [TODO] review.zig
+|   |
+|   +---gameplay/
+|   |   +---heroes/
+|   |   |       [TODO] catalog.zig          # register Skyline/Cascade/Bastion/Rupture
+|   |   |       [TODO] hero_skyline.zig     # DPS: air-blade hero
+|   |   |       [TODO] hero_cascade.zig     # Support: water-bender
+|   |   |       [TODO] hero_bastion_guard.zig   # Tank: wristguard shield-breaker
+|   |   |       [TODO] hero_rupture_gauntlet.zig # Brawler: gauntlet diver
+|   |   |
+|   |   +---abilities/
+|   |   |       [TODO] ability_defs.zig
+|   |   |       [TODO] ability_air_slash.zig
+|   |   |       [TODO] ability_ice_ramp.zig
+|   |   |       [TODO] ability_tidal_heal.zig
+|   |   |       [TODO] ability_shield_break.zig
+|   |   |       [TODO] ability_meteor_fist.zig
+|   |   |
+|   |   +---maps/
+|   |   |       [TODO] map_catalog.zig
+|   |   |       [TODO] script_city_rooftops.zig
+|   |   |       [TODO] script_canal_plaza.zig
+|   |   |       [TODO] script_foundry_crossing.zig
+|   |   |
+|   |   +---modes/
+|   |   |       [TODO] mode_payload.zig
+|   |   |       [TODO] mode_control_point.zig
+|   |   |       [TODO] mode_hybrid.zig
+|   |   |
+|   |   +---progression/
+|   |   |       [TODO] xp.zig
+|   |   |       [TODO] unlocks.zig
+|   |   |
+|   |   \---economy/
+|   |           [TODO] currencies.zig
+|   |           [TODO] store.zig
+|   |
+|   +---net/
+|   |       [TODO] protocol.zig
+|   |       [TODO] snapshot.zig
+|   |       [TODO] prediction.zig
+|   |       [TODO] lag_comp.zig
+|   |
+|   +---client/
+|   |   [TODO] app.zig                    # client runtime; wraps graphics + engine
+|   |   [TODO] loop.zig                   # main loop; drives input→sim→render
+|   |   +---input/
+|   |   |       [TODO] pc.zig
+|   |   |       [TODO] vr.zig
+|   |   |       [TODO] accessibility.zig
+|   |   |
+|   |   +---render/
+|   |   |       [TODO] vulkan_device.zig
+|   |   |       [TODO] vulkan_renderer.zig
+|   |   |       [TODO] openxr_session.zig
+|   |   |       [TODO] glfw_window.zig
+|   |   |       [TODO] post_process.zig
+|   |   |       [TODO] debug_draw.zig
+|   |   |
+|   |   \---ui/
+|   |           [TODO] hud.zig
+|   |           [TODO] menus.zig
+|   |           [TODO] scoreboard.zig
+|   |           [TODO] social.zig
+|   |
+|   +---server/
+|   |   [TODO] app.zig
+|   |   [TODO] loop.zig
+|   |   +---auth/
+|   |   |       [TODO] sessions.zig
+|   |   |
+|   |   +---match/
+|   |   |       [TODO] session.zig
+|   |   |       [TODO] rules.zig
+|   |   |       [TODO] matchmaking.zig
+|   |   |
+|   |   +---bots/
+|   |   |       [TODO] ai_controller.zig
+|   |   |       [TODO] behavior.zig
+|   |   |
+|   |   +---net/
+|   |   |       [TODO] listener.zig
+|   |   |       [TODO] client_conn.zig
+|   |   |
+|   |   \---zdb_hooks/
+|   |           [TODO] player_sync.zig
+|   |           [TODO] match_log.zig
+|   |           [TODO] replay_export.zig
+|   |           [TODO] telemetry_export.zig
+|   |           [TODO] anticheat_export.zig
+|   |
+|   \---lib/
+|           [TODO] bitset.zig
+|           [TODO] pool.zig
+|           [TODO] ring_buffer.zig
+|           [TODO] string_pool.zig
+|           [OPT]  logger.zig
+|
++---tests/
+|   +---conformance/
+|   |       [TODO] test_config_conformance.zig
+|   |       [TODO] test_schema_conformance.zig
+|   |       [TODO] test_protocol_conformance.zig
+|   |       [TODO] test_zdb_integration_conformance.zig
+|   |       [TODO] test_all_conformance.zig
+|   |
+|   +---integration/
+|   |       [TODO] test_client_server_roundtrip.zig
+|   |       [TODO] test_full_ability_cast.zig
+|   |       [TODO] test_replay_consistency.zig
+|   |       [TODO] test_anti_cheat_pipeline.zig
+|   |       [TODO] test_zdb_persistence.zig
+|   |       [TODO] test_all_integration.zig
+|   |
+|   \---e2e/
+|           [TODO] test_local_sandbox_cli.zig
+|           [TODO] test_dedicated_server_cli.zig
+|           [TODO] test_match_flow_e2e.zig
+|           [TODO] test_liveops_config_rollout.zig
+|           [TODO] test_all_e2e.zig
+|
++---tools/
+|   +---bench/
+|   |       [TODO] README.md
+|   |       [TODO] core_physics.zig
+|   |       [TODO] net_pipeline.zig
+|   |       [TODO] lagrangian.zig
+|   |       [TODO] biomech.zig
+|   |       [TODO] bench_all.zig
+|   |
+|   +---dev/
+|   |       [TODO] hero_editor.zig
+|   |       [TODO] map_editor.zig
+|   |       [TODO] replay_tools.zig
+|   |       [TODO] telemetry_inspector.zig
+|   |
+|   \---scripts/
+|           [TODO] fmt.sh
+|           [TODO] dev.ps1
+|           [TODO] build_assets.sh
+|           [TODO] release_notes_from_git.sh
+|
++---third_party/
+    [OPT]  glfw/                          # only if you ever vendor C sources instead of Zon deps
+    [OPT]  imgui/                         # future: Dear ImGui integration
+    [OPT]  audio_backend/                 # e.g. miniaudio-based backend for engine/audio

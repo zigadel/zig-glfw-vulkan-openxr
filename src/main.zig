@@ -15,10 +15,10 @@ const VK_FALSE32: vk.Bool32 = @enumFromInt(vk.FALSE);
 const VK_TRUE32: vk.Bool32 = @enumFromInt(vk.TRUE);
 
 // Human-readable app name for Vulkan, logs, etc. (does NOT need NUL).
-const app_name = "glfw-zig + vulkan-zig = triangle";
+const app_name = "VRGame — Zigadel Prototype";
 
 // NUL-terminated window title for GLFW.
-const window_title: [:0]const u8 = "glfw-zig + vulkan-zig = triangle";
+const window_title: [:0]const u8 = "VRGame — Zigadel Prototype";
 
 const vertices = [_]Vertex{
     .{ .pos = .{ 0, -0.5 }, .color = .{ 1, 0, 0 } },
